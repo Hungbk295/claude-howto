@@ -43,12 +43,6 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.temp
-# Keep .claude/ clean for hand-on section — except project skills
-.claude/*
-!.claude/skills/
-.claude/skills/*
-!.claude/skills/self-assessment/
-!.claude/skills/lesson-quiz/
 blog-posts/
 
 # Local progress tracker — HTML ships in repo, but exported JSON data files stay local

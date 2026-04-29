@@ -1,7 +1,7 @@
 ---
 name: lesson-quiz
-version: 1.0.0
-description: Interactive lesson-level quiz for Claude Code tutorials. Tests understanding of a specific lesson (01-10) with 8-10 questions mixing conceptual and practical knowledge. Use before a lesson to pre-test, during to check progress, or after to verify mastery. Use when asked to "quiz me on hooks", "test my knowledge of lesson 3", "lesson quiz", "practice quiz for MCP", or "do I understand skills".
+version: 2.0.0
+description: Interactive lesson-level quiz for Claude Code tutorials. Tests understanding of a specific lesson (01-10) with 8-10 questions mixing conceptual and practical knowledge. Integrates with progress tracking — score 7/10 to unlock the next lesson. Use before a lesson to pre-test, during to check progress, or after to verify mastery. Use when asked to "quiz me on hooks", "test my knowledge of lesson 3", "lesson quiz", "practice quiz for MCP", or "do I understand skills".
 ---
 
 # Lesson Quiz
@@ -154,9 +154,100 @@ After all rounds, calculate the score and present results.
 - [Offer]: "Would you like to retake this quiz, try a different lesson, or get help with a specific topic?"
 ```
 
-### Step 6: Offer Follow-up
+### Step 6: Update Progress (if tracking active)
 
-After presenting results, use AskUserQuestion:
+Before offering follow-up, check if `.progress/progress.json` exists.
+
+**If progress.json exists:**
+
+Read the file. Find the entry for the lesson just quizzed (match lesson directory name).
+
+**Feynman gate guard (gated mode only):**
+
+If lesson status is `"in_progress"` (feynman not yet passed) AND this quiz was not explicitly called as standalone:
+
+```
+## Quiz chưa được mở khóa
+
+Feynman exercise chưa pass cho lesson này.
+Gõ /feynman để hoàn thành bước giải thích trước.
+```
+
+Do NOT run the quiz. End skill here.
+
+If lesson status is `"feynman_passed"` or `"passed"` → continue normally below.
+
+**On score ≥ 7 (pass):**
+
+1. Update the lesson entry:
+   - `status` → `"passed"`
+   - `best_score` → max(current best_score, this score)
+   - `attempts` → increment by 1
+   - `passed_at` → today's date (YYYY-MM-DD)
+
+2. Find the next lesson in sequence using the next-lesson map:
+   - 01-slash-commands → 02-memory
+   - 02-memory → 03-skills
+   - 03-skills → 04-subagents
+   - 04-subagents → 05-mcp
+   - 05-mcp → 06-hooks
+   - 06-hooks → 07-plugins
+   - 07-plugins → 08-checkpoints
+   - 08-checkpoints → 09-advanced-features
+   - 09-advanced-features → 10-cli
+   - 10-cli → (none — course complete)
+
+3. If next lesson exists and its status is `"locked"`:
+   - Set next lesson status → `"unlocked"`
+   - Set `current_lesson` → next lesson
+   - Increment `completed_count` by 1
+
+4. Update `last_active` to today's date.
+
+5. Save progress.json.
+
+6. Display unlock notification:
+
+```
+---
+## 🎉 Lesson Passed! [Score]/10
+
+[If next lesson unlocked]:
+Next lesson unlocked: [Next Lesson Display Name]
+Type `/start` to continue to your next lesson.
+
+[If all lessons complete]:
+🏆 You've completed the entire curriculum! Run `/progress` to see your final stats.
+```
+
+**On score < 7 (not yet):**
+
+1. Update the lesson entry:
+   - `status` → keep as `"in_progress"` (do NOT change to passed)
+   - `best_score` → max(current best_score, this score) — track best even on fail
+   - `attempts` → increment by 1
+
+2. Save progress.json.
+
+3. Display gate message:
+
+```
+---
+## Score: [N]/10 — Not yet unlocked
+
+You need 7/10 to unlock the next lesson. (You scored [N]/10)
+Review the topics above, then retake the quiz.
+
+Attempts so far: [N]
+```
+
+**If progress.json does not exist:** skip this step entirely (standalone quiz mode).
+
+---
+
+### Step 7: Offer Follow-up
+
+After presenting results (and progress update if applicable), use AskUserQuestion:
 
 "What would you like to do next?"
 Options:
